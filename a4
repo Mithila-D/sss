@@ -1,0 +1,233 @@
+# ---------------------------------------------
+# Assignment 4: GA Optimization of SVM Parameter
+# ---------------------------------------------
+# Aim: Use Genetic Algorithm to find best 'C' for SVM classifier
+# Dataset: Iris Dataset (sepal_length, sepal_width, petal_length, petal_width, species)
+# ---------------------------------------------
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+
+# ---------------------------------------------
+# Step 1: Load Dataset
+# ---------------------------------------------
+data = pd.read_csv("/content/SCOA_A4.csv")      # use your file path here
+X = data.iloc[:, 0:4].values
+y = LabelEncoder().fit_transform(data['species'])
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# ---------------------------------------------
+# Step 2: Define Fitness Function
+# ---------------------------------------------
+def fitness(C_value):
+    model = SVC(C=C_value, kernel='linear')
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return accuracy_score(y_test, y_pred)
+
+# ---------------------------------------------
+# Step 3: Initialize Population
+# ---------------------------------------------
+pop_size = 6
+population = np.random.uniform(low=0.1, high=10.0, size=pop_size)
+
+# ---------------------------------------------
+# Step 4: GA Process (Selection, Crossover, Mutation)
+# ---------------------------------------------
+for gen in range(5):    # 5 generations
+    fitness_scores = [fitness(c) for c in population]
+    best_idx = np.argmax(fitness_scores)
+    best_C = population[best_idx]
+    print(f"Generation {gen+1}: Best C = {best_C:.4f}, Accuracy = {fitness_scores[best_idx]:.3f}")
+
+    # Selection: pick best 2
+    parents = sorted(zip(fitness_scores, population), reverse=True)[:2]
+    p1, p2 = parents[0][1], parents[1][1]
+
+    # Crossover
+    child1 = (p1 + p2) / 2
+    child2 = (p1 * 0.7) + (p2 * 0.3)
+
+    # Mutation (small random change)
+    child1 += np.random.uniform(-0.5, 0.5)
+    child2 += np.random.uniform(-0.5, 0.5)
+
+    # Create new generation
+    population = np.clip([p1, p2, child1, child2] + list(np.random.uniform(0.1, 10.0, 2)), 0.1, 10)
+
+# ---------------------------------------------
+# Step 5: Final Best Solution
+# ---------------------------------------------
+final_fitness = [fitness(c) for c in population]
+best_C = population[np.argmax(final_fitness)]
+best_acc = max(final_fitness)
+print("\nBest parameter found by GA:")
+print(f"C = {best_C:.4f}")
+print(f"Best Accuracy = {best_acc:.3f}")
+
+
+
+
+Generation 1: Best C = 2.2354, Accuracy = 1.000
+Generation 2: Best C = 2.5997, Accuracy = 1.000
+Generation 3: Best C = 3.0530, Accuracy = 1.000
+Generation 4: Best C = 3.0530, Accuracy = 1.000
+Generation 5: Best C = 3.0530, Accuracy = 1.000
+
+Best parameter found by GA:
+C = 3.1400
+Best Accuracy = 1.000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🧠 Theory
+📍 Genetic Algorithm (GA)
+	GA is a bio-inspired optimization algorithm based on the concept of natural selection and genetics.
+	It searches for the best solution to a problem by evolving a population of possible solutions.
+________________________________________
+⚙️ Basic Idea
+GA mimics evolution using:
+	Selection → best individuals survive
+	Crossover → mix genes (values) of parents
+	Mutation → introduce random small changes
+	Fitness Function → measures how good each individual is
+________________________________________
+📗 Formulas
+	Fitness Function:
+f(x)="Accuracy of SVM"(C=x)
+
+(We are maximizing accuracy.)
+	Crossover (Average method):
+〖"child" 〗_1=(p_1+p_2)/2
+〖"child" 〗_2=0.7p_1+0.3p_2
+
+	Mutation (small random change):
+〖"child" 〗_i^'=〖"child" 〗_i+"Uniform"(-0.5,0.5)
+
+	Selection:
+Pick top 2 parents with highest fitness values.
+	Population update:
+Replace with parents, children, and some new random solutions (to keep diversity).
+________________________________________
+🧩 Step-by-Step Code Explanation
+🪄 Step 1: Import Libraries
+import numpy as np, pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+✅ Libraries for data handling, SVM classifier, encoding labels, and measuring accuracy.
+________________________________________
+📊 Step 2: Load Dataset
+data = pd.read_csv("/content/SCOA_A4.csv")
+X = data.iloc[:, 0:4].values
+y = LabelEncoder().fit_transform(data['species'])
+	Loads Iris dataset (4 features + target).
+	Converts species names to numbers (0, 1, 2).
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+	Splits into 80% training, 20% testing.
+________________________________________
+🧩 Step 3: Define Fitness Function
+def fitness(C_value):
+    model = SVC(C=C_value, kernel='linear')
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return accuracy_score(y_test, y_pred)
+	Trains SVM model using given C value.
+	Evaluates how well it performs on test data.
+	Returns accuracy = fitness value.
+✅ Goal: find the C that gives max accuracy.
+________________________________________
+🧬 Step 4: Initialize Population
+pop_size = 6
+population = np.random.uniform(low=0.1, high=10.0, size=pop_size)
+	Randomly create 6 C-values between 0.1 and 10.
+	Each C = one chromosome or individual.
+Example population → [1.5, 3.2, 8.7, 5.1, 0.7, 9.3]
+________________________________________
+🔁 Step 5: GA Process (Main Loop)
+for gen in range(5):  # 5 generations
+We evolve the population 5 times.
+(a) Evaluate Fitness
+fitness_scores = [fitness(c) for c in population]
+best_idx = np.argmax(fitness_scores)
+best_C = population[best_idx]
+print(f"Generation {gen+1}: Best C = {best_C:.4f}, Accuracy = {fitness_scores[best_idx]:.3f}")
+✅ Compute and print accuracy for each C
+✅ Identify best individual in this generation
+________________________________________
+(b) Selection
+parents = sorted(zip(fitness_scores, population), reverse=True)[:2]
+p1, p2 = parents[0][1], parents[1][1]
+✅ Pick top 2 Cs with highest accuracy → parents
+________________________________________
+(c) Crossover
+child1 = (p1 + p2) / 2
+child2 = (p1 * 0.7) + (p2 * 0.3)
+✅ New children = combination of parent values.
+________________________________________
+(d) Mutation
+child1 += np.random.uniform(-0.5, 0.5)
+child2 += np.random.uniform(-0.5, 0.5)
+✅ Small random change to create variety.
+________________________________________
+(e) New Generation
+population = np.clip([p1, p2, child1, child2] + list(np.random.uniform(0.1, 10.0, 2)), 0.1, 10)
+✅ New population = parents + children + random new ones
+✅ np.clip keeps all C values between 0.1 and 10.0
+________________________________________
+🏁 Step 6: Final Best Solution
+final_fitness = [fitness(c) for c in population]
+best_C = population[np.argmax(final_fitness)]
+best_acc = max(final_fitness)
+print("\nBest parameter found by GA:")
+print(f"C = {best_C:.4f}")
+print(f"Best Accuracy = {best_acc:.3f}")
+✅ After all generations, pick the best final C and accuracy.
+________________________________________
+🧾 Summary for Notes / Viva
+Concept	Explanation
+Aim	Optimize SVM’s regularization parameter C using GA
+Dataset	Iris Dataset
+Chromosome	Each possible value of C
+Fitness Function	Accuracy of SVM on test data
+Selection	Pick best 2 parents
+Crossover	Combine parent Cs to form children
+Mutation	Random small change in C
+Best Output	Highest accuracy and its corresponding C
+Kernel Used	Linear
+No. of Generations	5
+Population Size	6
+________________________________________
+🧠 GA Flow (Easy 5-Step Memory Trick)
+1️⃣ Initialize random population
+2️⃣ Evaluate fitness for each
+3️⃣ Select top parents
+4️⃣ Crossover + Mutate → new generation
+5️⃣ Repeat until best fitness reached
+
