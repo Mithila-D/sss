@@ -1,0 +1,255 @@
+# -----------------------------------------------------------
+# Assignment No. 3
+# Title: Fuzzy Logic Control of a Simulated Robotic Arm
+# -----------------------------------------------------------
+# Concept:
+# - Two inputs: Angle Error (E), Angular Velocity (dE)
+# - One output: Torque (Control)
+# - Fuzzy Logic: Mamdani Inference + Centroid Defuzzification
+# -----------------------------------------------------------
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --------------------------------------------
+# Helper Functions: Triangular Membership Function
+# --------------------------------------------
+def triangular(x, a, b, c):
+    """Triangular membership function"""
+    return np.maximum(np.minimum((x - a) / (b - a), (c - x) / (c - b)), 0)
+
+# --------------------------------------------
+# Define Universe of Discourse (ranges)
+# --------------------------------------------
+x_error = np.linspace(-10, 10, 100)
+x_d_error = np.linspace(-5, 5, 100)
+x_torque = np.linspace(-10, 10, 100)
+
+# --------------------------------------------
+# Define Membership Functions
+# --------------------------------------------
+# For Error (E)
+error_N = triangular(x_error, -10, -10, 0)
+error_Z = triangular(x_error, -5, 0, 5)
+error_P = triangular(x_error, 0, 10, 10)
+
+# For Change in Error (dE)
+derr_N = triangular(x_d_error, -5, -5, 0)
+derr_Z = triangular(x_d_error, -2, 0, 2)
+derr_P = triangular(x_d_error, 0, 5, 5)
+
+# For Torque (Control Output)
+torque_N = triangular(x_torque, -10, -10, 0)
+torque_Z = triangular(x_torque, -5, 0, 5)
+torque_P = triangular(x_torque, 0, 10, 10)
+
+# --------------------------------------------
+# Fuzzification Function
+# --------------------------------------------
+def fuzzify(value, universe, neg, zero, pos):
+    """Compute membership grades for a crisp value"""
+    mu_N = np.interp(value, universe, neg)
+    mu_Z = np.interp(value, universe, zero)
+    mu_P = np.interp(value, universe, pos)
+    return {'N': mu_N, 'Z': mu_Z, 'P': mu_P}
+
+# --------------------------------------------
+# Rule Base (Example: 9 rules total)
+# --------------------------------------------
+# Each rule maps (Error, dError) → Torque
+# E.g., IF Error is Negative AND dError is Negative THEN Torque is Positive
+
+rules = {
+    ('N', 'N'): 'P',
+    ('N', 'Z'): 'P',
+    ('N', 'P'): 'Z',
+    ('Z', 'N'): 'P',
+    ('Z', 'Z'): 'Z',
+    ('Z', 'P'): 'N',
+    ('P', 'N'): 'Z',
+    ('P', 'Z'): 'N',
+    ('P', 'P'): 'N'
+}
+
+# --------------------------------------------
+# Mamdani Inference
+# --------------------------------------------
+def inference(error_value, derr_value):
+    """Perform Mamdani inference for given inputs"""
+    e = fuzzify(error_value, x_error, error_N, error_Z, error_P)
+    de = fuzzify(derr_value, x_d_error, derr_N, derr_Z, derr_P)
+
+    # Initialize aggregated output as zeros
+    aggregated = np.zeros_like(x_torque)
+
+    # Apply all rules
+    for (e_label, de_label), output_label in rules.items():
+        # Rule firing strength = min(μE, μdE)
+        firing_strength = min(e[e_label], de[de_label])
+
+        # Select corresponding output MF and clip it
+        if output_label == 'N':
+            clipped = np.fmin(firing_strength, torque_N)
+        elif output_label == 'Z':
+            clipped = np.fmin(firing_strength, torque_Z)
+        else:  # 'P'
+            clipped = np.fmin(firing_strength, torque_P)
+
+        # Aggregate (max) with previous rules
+        aggregated = np.fmax(aggregated, clipped)
+
+    return aggregated
+
+# --------------------------------------------
+# Defuzzification (Centroid Method)
+# --------------------------------------------
+def defuzzify(aggregated, universe):
+    """Centroid = sum(mu(x)*x)/sum(mu(x))"""
+    return np.sum(aggregated * universe) / np.sum(aggregated)
+
+# --------------------------------------------
+# Simulation of Robotic Arm Control
+# --------------------------------------------
+def simulate_fuzzy_control(target_angle=10, dt=0.1, gain=0.5):
+    angle = 0.0
+    history = []
+
+    for step in range(100):
+        error = target_angle - angle
+        derr = -error * 0.1  # approximate change in error
+
+        # Fuzzy inference + defuzzification
+        agg = inference(error, derr)
+        control = defuzzify(agg, x_torque)
+
+        # Update arm angle (simple plant model)
+        angle += dt * gain * control
+
+        history.append((step, angle, control, error))
+        if abs(error) < 0.1:
+            break
+
+    return history
+
+# --------------------------------------------
+# Run Simulation
+# --------------------------------------------
+data = simulate_fuzzy_control()
+
+# Print Results
+print("Step\tAngle\tControl\tError")
+for step, angle, control, error in data:
+    print(f"{step}\t{angle:.2f}\t{control:.2f}\t{error:.2f}")
+
+# Plot the final aggregated output surface for one sample input
+sample_agg = inference(error_value=5, derr_value=-2)
+plt.figure(figsize=(6,4))
+plt.plot(x_torque, sample_agg, label='Aggregated Output (Fuzzy Torque)')
+plt.xlabel('Torque')
+plt.ylabel('Membership Degree')
+plt.title('Aggregated Output Membership Function')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot simulation angle change
+steps, angles, controls, errors = zip(*data)
+plt.figure(figsize=(6,4))
+plt.plot(steps, angles, label='Arm Angle')
+plt.xlabel('Time Step')
+plt.ylabel('Angle Position')
+plt.title('Fuzzy Logic Control of Robotic Arm')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+
+
+
+
+
+🧠 1️⃣ Concept of Fuzzy Logic Control (FLC)
+Fuzzy Logic Control (FLC) is a rule-based control system that handles imprecision and uncertainty using linguistic (human-like) reasoning instead of precise mathematical models.
+It maps:
+Crisp Inputs → Fuzzy Sets → Fuzzy Rules → Fuzzy Outputs → Crisp Control Action
+Used widely in systems like robotics, washing machines, air conditioners, etc., where the relationship between input and output is not linear or easy to express mathematically.
+________________________________________
+⚙️ 2️⃣ Structure / Components of a Fuzzy Logic Controller
+Step	Component	Description	Formula
+1	Fuzzification	Converts crisp input values (like angle error) into fuzzy membership values (like Negative, Zero, Positive).	μA(x) = degree of membership of x in fuzzy set A
+2	Rule Base	Set of “IF–THEN” fuzzy rules designed by experts.	Example: IF Error is Negative AND dError is Positive THEN Torque is Zero
+3	Inference Engine	Combines rules and decides how much each rule fires (Mamdani method).	μRule = min(μE, μdE)
+4	Aggregation	Combines the outputs of all fired rules.	μAgg = max(μRule1, μRule2, …)
+5	Defuzzification	Converts fuzzy output set into a crisp (numeric) output.	Centroid method: y^*=(∑μ(x)⋅x)/(∑μ(x))
+________________________________________
+📘 3️⃣ Mamdani Fuzzy Inference Method
+Developed by Ebrahim Mamdani (1975) — it’s the most widely used and intuitive fuzzy inference system.
+✅ Steps in Mamdani Method:
+	Fuzzification:
+Convert inputs (like error E, change in error dE) into fuzzy values.
+→ Using membership functions (triangular, trapezoidal, Gaussian, etc.)
+	Rule Evaluation:
+Each rule is of the form:
+IF (Error is N) AND (dError is P) THEN (Torque is Z)
+The firing strength of the rule = min(μE, μdE)
+(This is the AND operation → uses minimum operator)
+	Implication (Output Clipping):
+Clip the output fuzzy set (like torque_N, torque_Z, torque_P) to the firing strength.
+→ μ_out (x)=min⁡("firing strength",μ_output (x))
+	Aggregation:
+Combine all clipped output sets into one aggregated fuzzy output.
+→ μ_aggregated (x)=max⁡(μ_rule1 (x),μ_rule2 (x),…)
+	Defuzzification:
+Convert aggregated fuzzy output into crisp control signal (torque).
+→ Centroid Method:
+〖"Torque" 〗^*=(∑(μ(x)⋅x))/(∑μ(x))
+
+________________________________________
+📏 4️⃣ Membership Functions Used (in your code)
+You used Triangular Membership Functions (trimf):
+"triangular"(x;a,b,c)={■(0,&x≤a@(x-a)/(b-a),&a<x≤b@(c-x)/(c-b),&b<x<c@0,&x≥c)
+
+Example:
+	Error: {Negative, Zero, Positive}
+	Change in Error: {Negative, Zero, Positive}
+	Output Torque: {Negative, Zero, Positive}
+________________________________________
+🦾 5️⃣ Control Logic Summary (Robotic Arm)
+At every time step:
+	Compute Error = Target Angle − Current Angle
+	Compute Change in Error (dE) ≈ derivative of error
+	Fuzzify both inputs → get membership values for N, Z, P
+	Apply Mamdani rules → infer fuzzy output torque
+	Defuzzify torque → get crisp torque value
+	Update the angle using the control torque
+〖"angle" 〗_new=〖"angle" 〗_old+dt×gain×"torque" 
+Repeat until error ≈ 0 (robotic arm reaches target).
+________________________________________
+🧩 6️⃣ Example Rule Table
+Error (E)	dError (dE)	Output Torque
+Negative	Negative	Positive
+Negative	Zero	Positive
+Negative	Positive	Zero
+Zero	Negative	Positive
+Zero	Zero	Zero
+Zero	Positive	Negative
+Positive	Negative	Zero
+Positive	Zero	Negative
+Positive	Positive	Negative
+💡 Interpretation:
+If the arm is far below the target (Negative Error) and still moving downward (Negative dE), then apply Positive Torque to move it up strongly.
+________________________________________
+🧮 7️⃣ Final Output Equations Recap
+Step	Formula
+Firing strength (rule i)	α_i=min⁡(μ_E^i,μ_dE^i)
+Implication (output clip)	μ_(out_i ) (x)=min⁡(α_i,μ_(Torque_i ) (x))
+Aggregation	μ_agg (x)=〖max⁡〗_i (μ_(out_i ) (x))
+Defuzzification (Centroid)	〖"Torque" 〗^*=(∑μ_agg (x)⋅x)/(∑μ_agg (x))
+________________________________________
+🧭 8️⃣ Visualization Tips
+	Plot membership functions → show how crisp inputs are converted.
+	Plot aggregated output (like you did) → shows combined fuzzy decisions.
+	Plot angle vs. time → shows arm reaching the target smoothly.
+
