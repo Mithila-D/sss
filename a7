@@ -1,0 +1,167 @@
+# ---------------------------------------
+# PSO for Data Clustering
+# ---------------------------------------
+# Step 1: Import Libraries
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import pairwise_distances_argmin
+import pyswarms as ps
+
+# Step 2: Load Dataset
+data = pd.read_csv("/content/SCOA_A7.csv")
+X = data[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']].values
+
+# Step 3: Normalize Data
+scaler = MinMaxScaler()
+X = scaler.fit_transform(X)
+
+# Step 4: Define Clustering Function
+def cluster_cost(centroids_flat):
+    n_clusters = 3
+    centroids = centroids_flat.reshape(n_clusters, X.shape[1])
+    labels = pairwise_distances_argmin(X, centroids)
+    # Sum of squared distances (SSE)
+    cost = sum(np.sum((X[labels == i] - centroids[i])**2) for i in range(n_clusters))
+    return cost
+
+# Wrap for all particles
+def cost_wrapper(particles):
+    return np.array([cluster_cost(p) for p in particles])
+
+# Step 5: Run PSO Optimization
+
+n_clusters = 3
+dims = n_clusters * X.shape[1]
+options = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
+
+optimizer = ps.single.GlobalBestPSO(n_particles=20, dimensions=dims, options=options)
+best_cost, best_pos = optimizer.optimize(cost_wrapper, iters=50)
+
+# Step 6: Final Clusters
+best_centroids = best_pos.reshape(n_clusters, X.shape[1])
+labels = pairwise_distances_argmin(X, best_centroids)
+
+# Step 7: Display Results
+print("Best Centroids:\n", best_centroids)
+print("Best Cost (SSE):", best_cost)
+print("Cluster labels sample:", labels[:10])
+
+
+
+
+
+
+🧠 Theory Recap — What is PSO?
+Particle Swarm Optimization (PSO)
+is an evolutionary algorithm inspired by how birds flock or fish school.
+Each “particle” (like a bird) represents one possible solution — here, a set of cluster centers.
+All particles “fly” through the search space, adjusting their positions based on:
+	their own best position (cognitive behavior)
+	the swarm’s best position (social behavior)
+Goal: minimize the cost function (in clustering, the total distance between points and their cluster centers).
+________________________________________
+⚙️ Mathematical Formulas
+For each particle i, at each iteration t:
+1️⃣ Velocity Update
+v_i (t+1)=w⋅v_i (t)+c_1⋅r_1⋅(p_i^best-x_i (t))+c_2⋅r_2⋅(g^best-x_i (t))
+
+	v_i (t): current velocity
+	w: inertia weight (controls momentum / exploration)
+	c_1: cognitive constant (self-attraction)
+	c_2: social constant (swarm attraction)
+	r_1,r_2: random numbers in [0,1]
+	p_i^best: personal best position
+	g^best: global best position
+________________________________________
+2️⃣ Position Update
+x_i (t+1)=x_i (t)+v_i (t+1)
+
+	x_i (t): current position (i.e., centroids)
+	v_i (t+1): updated velocity
+________________________________________
+3️⃣ Fitness / Objective Function
+For clustering, the cost is:
+J=∑_(k=1)^K ∑_(x_j∈C_k)∥x_j-μ_k ∥^2
+
+	K: number of clusters
+	x_j: data points
+	μ_k: centroid of cluster k
+	C_k: set of points in cluster k
+This is the same as SSE (Sum of Squared Errors) — smaller is better.
+________________________________________
+🔍 Code Explanation
+🧩 Step 1: Import Libraries
+import numpy as np, pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import pairwise_distances_argmin
+import pyswarms as ps
+	numpy, pandas → for data handling
+	MinMaxScaler → normalize data between [0,1]
+	pairwise_distances_argmin → assigns each point to nearest cluster center
+	pyswarms → PSO library
+________________________________________
+📊 Step 2: Load Dataset
+data = pd.read_csv("/content/SCOA_A7.csv")
+X = data[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']].values
+We use only numeric columns for clustering.
+.values → converts DataFrame → NumPy array.
+________________________________________
+⚖️ Step 3: Normalize Data
+scaler = MinMaxScaler()
+X = scaler.fit_transform(X)
+Normalization makes all features within the same range [0,1], preventing one column (like income) from dominating distance calculation.
+________________________________________
+🧮 Step 4: Define Clustering Function
+def cluster_cost(centroids_flat):
+    n_clusters = 3
+    centroids = centroids_flat.reshape(n_clusters, X.shape[1])
+    labels = pairwise_distances_argmin(X, centroids)
+    cost = sum(np.sum((X[labels == i] - centroids[i])**2) for i in range(n_clusters))
+    return cost
+	centroids_flat → one particle (flattened centroid positions)
+	Reshape → convert to proper (3 × features)
+	Assign each data point to nearest centroid
+	Compute SSE (sum of squared errors)
+This function returns cost (fitness).
+________________________________________
+🧰 Step 5: Run PSO Optimization
+n_clusters = 3
+dims = n_clusters * X.shape[1]
+options = {'c1': 1.5, 'c2': 1.5, 'w': 0.5}
+
+optimizer = ps.single.GlobalBestPSO(n_particles=20, dimensions=dims, options=options)
+best_cost, best_pos = optimizer.optimize(cost_wrapper, iters=50)
+	n_particles = 20 → number of possible centroid sets
+	dimensions = 3 clusters × 3 features = 9 values per particle
+	PSO will move centroids around to minimize the SSE
+	c1, c2, w → control balance between exploration and exploitation
+________________________________________
+🎯 Step 6: Extract Best Clusters
+best_centroids = best_pos.reshape(n_clusters, X.shape[1])
+labels = pairwise_distances_argmin(X, best_centroids)
+Once optimization is done, reshape the best position to 3 centroids and assign each point to nearest cluster.
+________________________________________
+📈 Step 7: Print Results
+print("Best Centroids:\n", best_centroids)
+print("Best Cost (SSE):", best_cost)
+print("Cluster labels sample:", labels[:10])
+This displays:
+	Optimal cluster centers
+	Best SSE (lower = better)
+	Sample of cluster assignments
+________________________________________
+🔁 Summary of PSO Steps in This Code
+Step	Description	What Happens Here
+1	Initialize swarm	Random centroids (particles)
+2	Evaluate fitness	Calculate SSE for each particle
+3	Update velocity & position	Move centroids toward better solutions
+4	Update bests	Track best individual and global positions
+5	Repeat	Until iteration limit (50)
+6	Output	Best cluster centroids and cost
+________________________________________
+🧾 Conclusion
+✅ PSO mimics swarm intelligence to find optimal cluster centers.
+✅ It avoids local minima (unlike k-means).
+✅ This code shows a short, learnable, and working PSO example for clustering.
+
