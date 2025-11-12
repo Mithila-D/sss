@@ -1,0 +1,163 @@
+# --------------------------------------------
+# Assignment 1: Fuzzy Set & Relation Operations
+# --------------------------------------------
+
+# Fuzzy sets A and B
+A = {1: 0.2, 2: 0.7, 3: 1.0}
+B = {1: 0.5, 2: 0.4, 3: 0.9}
+
+# --------------------------------------------
+# 1. Fuzzy Set Operations
+# --------------------------------------------
+
+def fuzzy_union(A, B):
+    """μA∪B(x) = max(μA(x), μB(x))"""
+    return {x: max(A[x], B[x]) for x in A}
+
+def fuzzy_intersection(A, B):
+    """μA∩B(x) = min(μA(x), μB(x))"""
+    return {x: min(A[x], B[x]) for x in A}
+
+def fuzzy_complement(A):
+    """μA′(x) = 1 - μA(x)"""
+    return {x: 1 - A[x] for x in A}
+
+# --------------------------------------------
+# 2. Fuzzy Relation (Cartesian Product)
+# --------------------------------------------
+
+def fuzzy_relation(A, B):
+    """R(x, y) = min(μA(x), μB(y))"""
+    X = list(A.keys())
+    Y = list(B.keys())
+    relation = []
+    for x in X:
+        row = []
+        for y in Y:
+            row.append(min(A[x], B[y]))
+        relation.append(row)
+    return relation
+
+# --------------------------------------------
+# 3. Max–Min Composition of Relations
+# --------------------------------------------
+
+def max_min_composition(R1, R2):
+    """R(x, z) = max_y [ min(R1(x,y), R2(y,z)) ]"""
+    rows = len(R1)
+    cols = len(R2[0])
+    mid = len(R2)
+    result = [[0]*cols for _ in range(rows)]
+
+    for i in range(rows):
+        for j in range(cols):
+            result[i][j] = max([min(R1[i][k], R2[k][j]) for k in range(mid)])
+    return result
+
+# --------------------------------------------
+# MAIN EXECUTION
+# --------------------------------------------
+print("Fuzzy Set A:", A)
+print("Fuzzy Set B:", B)
+print("\n--- Fuzzy Set Operations ---")
+print("Union (A ∪ B):", fuzzy_union(A, B))
+print("Intersection (A ∩ B):", fuzzy_intersection(A, B))
+print("Complement of A:", fuzzy_complement(A))
+
+print("\n--- Fuzzy Relation (A × B) ---")
+R1 = fuzzy_relation(A, B)
+for row in R1:
+    print(row)
+
+# Let's create another fuzzy relation (B × A) for composition example
+R2 = fuzzy_relation(B, A)
+print("\nFuzzy Relation (B × A):")
+for row in R2:
+    print(row)
+
+# Perform Max–Min Composition
+R_comp = max_min_composition(R1, R2)
+print("\n--- Max–Min Composition (R1 ∘ R2) ---")
+for row in R_comp:
+    print(row)
+
+
+
+
+
+
+
+
+
+
+🧠 Fuzzy Set & Relation Operations — Theory + Formulas
+________________________________________
+1️⃣ Fuzzy Set — Definition
+A fuzzy set Aon a universe Xis defined as:
+A={(x,μ_A (x))∣x∈X}
+
+where μ_A (x)∈[0,1]is the membership degree of element xin set A.
+Example in code:
+A = {1: 0.2, 2: 0.7, 3: 1.0}
+B = {1: 0.5, 2: 0.4, 3: 0.9}
+So element 3 belongs to A with full degree 1.0, while 1 belongs partially (0.2).
+________________________________________
+2️⃣ Basic Fuzzy Set Operations
+Operation	Formula	Meaning	Python Code
+Union (A ∪ B)	μ_(A∪B) (x)=max⁡(μ_A (x),μ_B (x))	Element belongs if it belongs to either set.	max(A[x], B[x])
+Intersection (A ∩ B)	μ_(A∩B) (x)=min⁡(μ_A (x),μ_B (x))	Element belongs if it belongs to both sets.	min(A[x], B[x])
+Complement (A')	μ_(A^' ) (x)=1-μ_A (x)	Opposite membership degree.	1 - A[x]
+✅ Example Output:
+Union (A ∪ B): {1: 0.5, 2: 0.7, 3: 1.0}
+Intersection (A ∩ B): {1: 0.2, 2: 0.4, 3: 0.9}
+Complement of A: {1: 0.8, 2: 0.3, 3: 0.0}
+________________________________________
+3️⃣ Fuzzy Relation
+A fuzzy relation between two fuzzy sets A and B is defined by:
+R(x,y)=min⁡(μ_A (x),μ_B (y))
+
+This forms a relation matrix of size |A| × |B|.
+✅ Code:
+def fuzzy_relation(A,B):
+    return [[min(A[x],B[y]) for y in B] for x in A]
+✅ Example Output:
+Fuzzy Relation (A × B):
+[[0.2, 0.2, 0.2],
+ [0.5, 0.4, 0.7],
+ [0.5, 0.4, 0.9]]
+________________________________________
+4️⃣ Max–Min Composition of Fuzzy Relations
+If you have two relations:
+	R_1: X → Y
+	R_2: Y → Z
+Then the composition R_1∘R_2is defined as:
+R(x,z)=(max⁡)┬y [min⁡(R_1 (x,y),R_2 (y,z))]
+
+✅ Meaning:
+	For each pair (x,z), take min across all intermediate y.
+	Then take max of those mins → that gives the final relation.
+✅ Code:
+def max_min_composition(R1,R2):
+    return [[max(min(R1[i][k], R2[k][j]) for k in range(len(R2)))
+             for j in range(len(R2[0]))] for i in range(len(R1))]
+✅ Output Example:
+Max–Min Composition (R1 ∘ R2):
+[[0.2, 0.2, 0.2],
+ [0.5, 0.4, 0.7],
+ [0.5, 0.4, 0.9]]
+________________________________________
+5️⃣ Quick Summary Table
+Concept	Symbolic Formula	Python Equivalent
+Union	max⁡(μ_A,μ_B)	max()
+Intersection	min⁡(μ_A,μ_B)	min()
+Complement	1-μ_A	1 - value
+Relation	min⁡(μ_A (x),μ_B (y))	nested list of mins
+Max–Min Composition	〖max⁡〗_y [min⁡(R_1 (x,y),R_2 (y,z))]	nested loops with max–min
+________________________________________
+6️⃣ Applications of Fuzzy Relations
+	Fuzzy reasoning and decision systems
+	Fuzzy control rules (used inside Fuzzy Inference Systems like Mamdani)
+	Pattern recognition
+	Image processing
+	Fuzzy expert systems
+
