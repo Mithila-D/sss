@@ -1,0 +1,202 @@
+# ---------------------------------------------
+# Assignment 5: ANN for Stock Market Trend Prediction
+# ---------------------------------------------
+# Aim: Predict next-day stock trend (Up/Down) using ANN
+# Dataset: date, open, high, low, close, volume, name
+# ---------------------------------------------
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# ---------------------------------------------
+# Step 1: Load and Prepare Data
+# ---------------------------------------------
+data = pd.read_csv("/content/SCOA_A5.csv")     # replace with your dataset name
+
+# Create simple features
+data['PriceDiff'] = data['close'] - data['open']
+data['Range'] = data['high'] - data['low']
+
+# Target: 1 if next day close > today close else 0
+data['Target'] = (data['close'].shift(-1) > data['close']).astype(int)
+data = data.dropna()
+
+# Features and labels
+X = data[['open', 'high', 'low', 'close', 'volume', 'PriceDiff', 'Range']]
+y = data['Target']
+
+# Scale features for ANN
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# ---------------------------------------------
+# Step 2: Build Simple ANN Model
+# ---------------------------------------------
+model = Sequential([
+    Dense(10, input_dim=X_train.shape[1], activation='relu'),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+# ---------------------------------------------
+# Step 3: Compile and Train Model
+# ---------------------------------------------
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=1)
+
+# ---------------------------------------------
+# Step 4: Evaluate Model
+# ---------------------------------------------
+loss, acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"Model Accuracy: {acc*100:.2f}%")
+
+# ---------------------------------------------
+# Step 5: Predict Trend for Last Record
+# ---------------------------------------------
+last = np.array(X_scaled[-1:])     # last day’s features
+pred = model.predict(last)
+trend = "UP" if pred > 0.5 else "DOWN"
+print(f"Predicted Next-Day Trend: {trend}")
+
+
+
+
+
+
+🧠 Theory
+📍 What is ANN (Artificial Neural Network)?
+	ANN is a model inspired by how the human brain works.
+	It learns patterns from data and makes predictions.
+	Each neuron performs:
+y=f(w_1 x_1+w_2 x_2+...+b)
+
+where
+	x_i→ input features
+	w_i→ weights (learned by training)
+	b→ bias
+	f()→ activation function (like ReLU, Sigmoid)
+________________________________________
+⚙️ How ANN learns
+	Forward Propagation – compute predicted output using weights
+y ̂=f(WX+b)
+
+	Loss Function – measure error between predicted and actual
+For binary output (Up/Down):
+L=-[ylog⁡(y ̂)+(1-y)log⁡(1-y ̂)]
+
+	Backward Propagation – adjust weights to minimize loss using gradient descent.
+Optimizer like Adam automates this.
+________________________________________
+🎯 Our Problem: Stock Market Trend
+We want to predict:
+Will tomorrow’s stock go UP or DOWN?
+Input features:
+	open, high, low, close, volume
+	derived features: PriceDiff = close − open, Range = high − low
+Target:
+"Target"={■(1&"if next day’s close > today’s close" @0&"otherwise" )
+
+________________________________________
+🧩 Step-by-Step Code Explanation
+Step 1: Import Libraries
+import pandas as pd, numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+✅ Loads all necessary tools for data handling, scaling, splitting, and building the ANN.
+________________________________________
+Step 2: Load & Prepare Data
+data = pd.read_csv("/content/SCOA_A5.csv")
+Reads dataset (must have columns: date, open, high, low, close, volume).
+Feature engineering:
+data['PriceDiff'] = data['close'] - data['open']
+data['Range'] = data['high'] - data['low']
+Create target column:
+data['Target'] = (data['close'].shift(-1) > data['close']).astype(int)
+	shift(-1) compares today’s close with tomorrow’s close.
+	Gives 1 (UP) or 0 (DOWN).
+	.astype(int) converts True/False → 1/0.
+Drop last NaN row (since next-day value doesn’t exist):
+data = data.dropna()
+________________________________________
+Step 3: Prepare X and y
+X = data[['open', 'high', 'low', 'close', 'volume', 'PriceDiff', 'Range']]
+y = data['Target']
+✅ X → input features, y → output label
+Normalize inputs
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
+	Scales all features between 0 and 1.
+	Helps faster and stable ANN training.
+Split dataset
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+	80% data → training
+	20% data → testing
+________________________________________
+Step 4: Build ANN
+model = Sequential([
+    Dense(10, input_dim=X_train.shape[1], activation='relu'),
+    Dense(8, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+Layer-wise explanation:
+Layer	Type	Neurons	Activation	Purpose
+1	Dense	10	ReLU	learns non-linear patterns
+2	Dense	8	ReLU	deeper pattern learning
+3	Dense	1	Sigmoid	output 0–1 (Up/Down)
+________________________________________
+Step 5: Compile & Train
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=1)
+✅ Binary Crossentropy used since target = 0/1
+✅ Adam optimizer updates weights automatically
+✅ Trains for 20 iterations (epochs)
+________________________________________
+Step 6: Evaluate Model
+loss, acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"Model Accuracy: {acc*100:.2f}%")
+Shows how well ANN predicts Up/Down on unseen data.
+________________________________________
+Step 7: Predict Next Day’s Trend
+last = np.array(X_scaled[-1:])
+pred = model.predict(last)
+trend = "UP" if pred > 0.5 else "DOWN"
+print(f"Predicted Next-Day Trend: {trend}")
+	Takes the last record
+	Predicts next-day trend
+	If output > 0.5 → UP else DOWN
+________________________________________
+🔢 Formulas Recap
+	Input to neuron:
+z=∑w_i x_i+b
+
+	Activation (ReLU):
+f(z)=max⁡(0,z)
+
+	Output (Sigmoid):
+σ(z)=1/(1+e^(-z) )
+
+	Loss (Binary Cross Entropy):
+L=-[ylog⁡(y ̂)+(1-y)log⁡(1-y ̂)]
+
+________________________________________
+🧭 Summary for Viva / Notes
+Concept	Explanation
+Aim	Predict next day’s stock trend using ANN
+Input Features	open, high, low, close, volume, PriceDiff, Range
+Output	1 (UP), 0 (DOWN)
+Model Type	Feedforward ANN
+Activation	ReLU (hidden), Sigmoid (output)
+Loss Function	Binary Crossentropy
+Optimizer	Adam
+Evaluation Metric	Accuracy
+Output Example	Model Accuracy = 88.25%, Predicted Trend: UP
+
